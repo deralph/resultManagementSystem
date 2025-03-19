@@ -8,148 +8,162 @@ import Spinner from "../../../utils/Spinner";
 import * as classes from "../../../utils/styles";
 import { CREATE_NOTICE, SET_ERRORS } from "../../../redux/actionTypes";
 
+const initialNoticeState = {
+  date: "",
+  noticeFor: "",
+  topic: "",
+  content: "",
+  from: "",
+};
+
 const Body = () => {
   const dispatch = useDispatch();
-  const store = useSelector((state) => state);
-  const departments = useSelector((state) => state.admin.allDepartment);
+  const { errors } = useSelector((state) => state);
+  const { noticeCreated } = useSelector((state) => state.admin);
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState({});
-  const [value, setValue] = useState({
-    date: "",
-    noticeFor: "",
-    topic: "",
-    content: "",
-    from: "",
-  });
+  const [formValues, setFormValues] = useState(initialNoticeState);
+
+  // Clear Redux errors on mount
   useEffect(() => {
-    if (Object.keys(store.errors).length !== 0) {
-      setError(store.errors);
-      setValue({ date: "", noticeFor: "", topic: "", content: "", from: "" });
+    dispatch({ type: SET_ERRORS, payload: {} });
+  }, [dispatch]);
+
+  // Handle Redux errors
+  useEffect(() => {
+    if (Object.keys(errors).length > 0) {
+      setError(errors);
+      setFormValues(initialNoticeState);
+      setLoading(false);
     }
-  }, [store.errors]);
+  }, [errors]);
+
+  // Handle notice creation success
+  useEffect(() => {
+    if (noticeCreated) {
+      setLoading(false);
+      setFormValues(initialNoticeState);
+      dispatch({ type: CREATE_NOTICE, payload: false });
+      dispatch({ type: SET_ERRORS, payload: {} });
+    }
+  }, [noticeCreated, dispatch]);
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormValues((prev) => ({ ...prev, [name]: value }));
+  };
 
   const handleSubmit = (e) => {
     e.preventDefault();
     setError({});
     setLoading(true);
-    dispatch(createNotice(value));
+    dispatch(createNotice(formValues));
   };
 
-  useEffect(() => {
-    if (store.errors || store.admin.noticeCreated) {
-      setLoading(false);
-      if (store.admin.noticeCreated) {
-        setValue({
-          date: "",
-          noticeFor: "",
-          topic: "",
-          content: "",
-          from: "",
-        });
-        dispatch({ type: CREATE_NOTICE, payload: false });
-        dispatch({ type: SET_ERRORS, payload: {} });
-      }
-    } else {
-      setLoading(true);
-    }
-  }, [store.errors, store.admin.noticeCreated]);
-
-  useEffect(() => {
-    dispatch({ type: SET_ERRORS, payload: {} });
-  }, []);
+  const handleClear = () => {
+    setFormValues(initialNoticeState);
+    setError({});
+  };
 
   return (
-    <div className="flex-[0.8] mt-3">
+    <div className="mt-3 w-full px-4">
       <div className="space-y-5">
-        <div className="flex text-gray-400 items-center space-x-2">
+        <div className="flex items-center space-x-2 text-gray-400">
           <EngineeringIcon />
-          <h1>Create Notice</h1>
+          <h1 className="text-lg font-semibold">Create Notice</h1>
         </div>
-        <div className=" mr-10 bg-white flex flex-col rounded-xl ">
+        <div className="bg-white rounded-xl shadow p-4">
           <form className={classes.adminForm0} onSubmit={handleSubmit}>
-            <div className={classes.adminForm1}>
-              <div className={classes.adminForm2l}>
-                <div className={classes.adminForm3}>
-                  <h1 className={classes.adminLabel}>Date :</h1>
-
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Left Column */}
+              <div>
+                <div className="mb-4">
+                  <label className={classes.adminLabel} htmlFor="date">
+                    Date:
+                  </label>
                   <input
+                    id="date"
+                    name="date"
                     placeholder="Date"
                     required
                     className={classes.adminInput}
                     type="date"
-                    value={value.date}
-                    onChange={(e) =>
-                      setValue({ ...value, date: e.target.value })
-                    }
+                    value={formValues.date}
+                    onChange={handleChange}
                   />
                 </div>
-
-                <div className={classes.adminForm3}>
-                  <h1 className={classes.adminLabel}>Topic :</h1>
-
+                <div className="mb-4">
+                  <label className={classes.adminLabel} htmlFor="topic">
+                    Topic:
+                  </label>
                   <input
-                    required
+                    id="topic"
+                    name="topic"
                     placeholder="Topic"
+                    required
                     className={classes.adminInput}
                     type="text"
-                    value={value.topic}
-                    onChange={(e) =>
-                      setValue({ ...value, topic: e.target.value })
-                    }
+                    value={formValues.topic}
+                    onChange={handleChange}
                   />
                 </div>
-
-                <div className={classes.adminForm3}>
-                  <h1 className={classes.adminLabel}>To :</h1>
+                <div className="mb-4">
+                  <label className={classes.adminLabel} htmlFor="noticeFor">
+                    To:
+                  </label>
                   <Select
+                    id="noticeFor"
+                    name="noticeFor"
                     required
                     displayEmpty
                     sx={{ height: 36 }}
                     inputProps={{ "aria-label": "Without label" }}
-                    value={value.noticeFor}
-                    onChange={(e) =>
-                      setValue({ ...value, noticeFor: e.target.value })
-                    }>
+                    value={formValues.noticeFor}
+                    onChange={handleChange}
+                  >
                     <MenuItem value="">None</MenuItem>
                     <MenuItem value="all">All</MenuItem>
                     <MenuItem value="faculty">Faculty</MenuItem>
                     <MenuItem value="student">Student</MenuItem>
                   </Select>
                 </div>
-                <div className={classes.adminForm3}>
-                  <h1 className={classes.adminLabel}>From :</h1>
-
+                <div className="mb-4">
+                  <label className={classes.adminLabel} htmlFor="from">
+                    From:
+                  </label>
                   <input
-                    required
+                    id="from"
+                    name="from"
                     placeholder="From"
+                    required
                     className={classes.adminInput}
                     type="text"
-                    value={value.from}
-                    onChange={(e) =>
-                      setValue({ ...value, from: e.target.value })
-                    }
+                    value={formValues.from}
+                    onChange={handleChange}
                   />
                 </div>
               </div>
-              <div className={classes.adminForm2r}>
-                <div className={classes.adminForm3}>
-                  <h1 className={`self-start  ${classes.adminLabel}`}>
-                    Content :
-                  </h1>
-
+              {/* Right Column */}
+              <div>
+                <div className="mb-4">
+                  <label
+                    className={`self-start ${classes.adminLabel}`}
+                    htmlFor="content"
+                  >
+                    Content:
+                  </label>
                   <textarea
+                    id="content"
+                    name="content"
                     rows={10}
-                    cols={40}
                     required
-                    placeholder="Content...."
+                    placeholder="Content..."
                     className={classes.adminInput}
-                    value={value.content}
-                    onChange={(e) =>
-                      setValue({ ...value, content: e.target.value })
-                    }
+                    value={formValues.content}
+                    onChange={handleChange}
                   />
                 </div>
-                <div className={classes.adminForm3}></div>
               </div>
             </div>
             <div className={classes.adminFormButton}>
@@ -157,18 +171,10 @@ const Body = () => {
                 Submit
               </button>
               <button
-                onClick={() => {
-                  setValue({
-                    date: "",
-                    noticeFor: "",
-                    topic: "",
-                    content: "",
-                    from: "",
-                  });
-                  setError({});
-                }}
+                onClick={handleClear}
                 className={classes.adminFormClearButton}
-                type="button">
+                type="button"
+              >
                 Clear
               </button>
             </div>

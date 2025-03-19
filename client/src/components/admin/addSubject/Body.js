@@ -7,116 +7,122 @@ import MenuItem from "@mui/material/MenuItem";
 import Spinner from "../../../utils/Spinner";
 import { ADD_SUBJECT, SET_ERRORS } from "../../../redux/actionTypes";
 import * as classes from "../../../utils/styles";
+
+const initialFormState = {
+  subjectName: "",
+  subjectCode: "",
+  year: "",
+  totalLectures: "",
+  department: "",
+};
+
 const Body = () => {
   const dispatch = useDispatch();
-  const store = useSelector((state) => state);
-  const departments = useSelector((state) => state.admin.allDepartment);
+  const { errors } = useSelector((state) => state);
+  const { subjectAdded, allDepartment: departments } = useSelector(
+    (state) => state.admin
+  );
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState({});
-  const [value, setValue] = useState({
-    subjectName: "",
-    subjectCode: "",
-    year: "",
-    totalLectures: "",
-    department: "",
-  });
+  const [formValues, setFormValues] = useState(initialFormState);
 
+  // Clear redux errors on mount
   useEffect(() => {
-    if (Object.keys(store.errors).length !== 0) {
-      setError(store.errors);
-      setValue({
-        subjectName: "",
-        subjectCode: "",
-        year: "",
-        totalLectures: "",
-        department: "",
-      });
+    dispatch({ type: SET_ERRORS, payload: {} });
+  }, [dispatch]);
+
+  // Handle errors from Redux
+  useEffect(() => {
+    if (Object.keys(errors).length > 0) {
+      setError(errors);
+      setFormValues(initialFormState);
+      setLoading(false);
     }
-  }, [store.errors]);
+  }, [errors]);
+
+  // Handle subject addition success from Redux
+  useEffect(() => {
+    if (subjectAdded) {
+      setLoading(false);
+      setFormValues(initialFormState);
+      dispatch({ type: SET_ERRORS, payload: {} });
+      dispatch({ type: ADD_SUBJECT, payload: false });
+    }
+  }, [subjectAdded, dispatch]);
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormValues((prev) => ({ ...prev, [name]: value }));
+  };
 
   const handleSubmit = (e) => {
     e.preventDefault();
     setError({});
     setLoading(true);
-    dispatch(addSubject(value));
+    dispatch(addSubject(formValues));
   };
 
-  useEffect(() => {
-    if (store.errors || store.admin.subjectAdded) {
-      setLoading(false);
-      if (store.admin.subjectAdded) {
-        setValue({
-          subjectName: "",
-          subjectCode: "",
-          year: "",
-          totalLectures: "",
-          department: "",
-        });
-
-        dispatch({ type: SET_ERRORS, payload: {} });
-        dispatch({ type: ADD_SUBJECT, payload: false });
-      }
-    } else {
-      setLoading(true);
-    }
-  }, [store.errors, store.admin.subjectAdded]);
-
-  useEffect(() => {
-    dispatch({ type: SET_ERRORS, payload: {} });
-  }, []);
+  const handleClear = () => {
+    setFormValues(initialFormState);
+    setError({});
+  };
 
   return (
-    <div className="flex-[0.8] mt-3">
+    <div className="mt-3 w-full px-4">
       <div className="space-y-5">
-        <div className="flex text-gray-400 items-center space-x-2">
+        <div className="flex items-center space-x-2 text-gray-400">
           <AddIcon />
-          <h1>Add Course</h1>
+          <h1 className="text-lg font-semibold">Add Course</h1>
         </div>
-        <div className=" mr-10 bg-white flex flex-col rounded-xl ">
+        <div className="bg-white rounded-xl shadow p-4">
           <form className={classes.adminForm0} onSubmit={handleSubmit}>
-            <div className={classes.adminForm1}>
-              <div className={classes.adminForm2l}>
-                <div className={classes.adminForm3}>
-                  <h1 className={classes.adminLabel}>Subject Name :</h1>
-
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Left Column */}
+              <div>
+                <div className="mb-4">
+                  <label className={classes.adminLabel} htmlFor="subjectName">
+                    Subject Name:
+                  </label>
                   <input
+                    id="subjectName"
+                    name="subjectName"
                     placeholder="Course Name"
                     required
                     className={classes.adminInput}
                     type="text"
-                    value={value.subjectName}
-                    onChange={(e) =>
-                      setValue({ ...value, subjectName: e.target.value })
-                    }
+                    value={formValues.subjectName}
+                    onChange={handleChange}
                   />
                 </div>
-
-                <div className={classes.adminForm3}>
-                  <h1 className={classes.adminLabel}>Subject Code :</h1>
-
+                <div className="mb-4">
+                  <label className={classes.adminLabel} htmlFor="subjectCode">
+                    Subject Code:
+                  </label>
                   <input
+                    id="subjectCode"
+                    name="subjectCode"
                     required
                     placeholder="Course Code"
                     className={classes.adminInput}
                     type="text"
-                    value={value.subjectCode}
-                    onChange={(e) =>
-                      setValue({ ...value, subjectCode: e.target.value })
-                    }
+                    value={formValues.subjectCode}
+                    onChange={handleChange}
                   />
                 </div>
-
-                <div className={classes.adminForm3}>
-                  <h1 className={classes.adminLabel}>Year :</h1>
+                <div className="mb-4">
+                  <label className={classes.adminLabel} htmlFor="year">
+                    Year:
+                  </label>
                   <Select
+                    id="year"
+                    name="year"
                     required
                     displayEmpty
                     sx={{ height: 36 }}
                     inputProps={{ "aria-label": "Without label" }}
-                    value={value.year}
-                    onChange={(e) =>
-                      setValue({ ...value, year: e.target.value })
-                    }
+                    value={formValues.year}
+                    onChange={handleChange}
                   >
                     <MenuItem value="">None</MenuItem>
                     <MenuItem value="1">1</MenuItem>
@@ -126,32 +132,36 @@ const Body = () => {
                   </Select>
                 </div>
               </div>
-              <div className={classes.adminForm2r}>
-                <div className={classes.adminForm3}>
-                  <h1 className={classes.adminLabel}>Total Lectures :</h1>
-
+              {/* Right Column */}
+              <div>
+                <div className="mb-4">
+                  <label className={classes.adminLabel} htmlFor="totalLectures">
+                    Total Lectures:
+                  </label>
                   <input
+                    id="totalLectures"
+                    name="totalLectures"
                     required
                     placeholder="Total Lectures"
                     className={classes.adminInput}
                     type="number"
-                    value={value.totalLectures}
-                    onChange={(e) =>
-                      setValue({ ...value, totalLectures: e.target.value })
-                    }
+                    value={formValues.totalLectures}
+                    onChange={handleChange}
                   />
                 </div>
-                <div className={classes.adminForm3}>
-                  <h1 className={classes.adminLabel}>Department :</h1>
+                <div className="mb-4">
+                  <label className={classes.adminLabel} htmlFor="department">
+                    Department:
+                  </label>
                   <Select
+                    id="department"
+                    name="department"
                     required
                     displayEmpty
                     sx={{ height: 36 }}
                     inputProps={{ "aria-label": "Without label" }}
-                    value={value.department}
-                    onChange={(e) =>
-                      setValue({ ...value, department: e.target.value })
-                    }
+                    value={formValues.department}
+                    onChange={handleChange}
                   >
                     <MenuItem value="">None</MenuItem>
                     {departments?.map((dp, idx) => (
@@ -168,16 +178,7 @@ const Body = () => {
                 Submit
               </button>
               <button
-                onClick={() => {
-                  setValue({
-                    subjectName: "",
-                    subjectCode: "",
-                    year: "",
-                    totalLectures: "",
-                    department: "",
-                  });
-                  setError({});
-                }}
+                onClick={handleClear}
                 className={classes.adminFormClearButton}
                 type="button"
               >

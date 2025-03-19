@@ -1,79 +1,72 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import BoyIcon from "@mui/icons-material/Boy";
 import { useDispatch, useSelector } from "react-redux";
-import { getStudent, uploadMark } from "../../../redux/actions/facultyActions";
+import {
+  getStudent,
+  uploadMark,
+  getTest,
+} from "../../../redux/actions/facultyActions";
 import { MenuItem, Select } from "@mui/material";
 import Spinner from "../../../utils/Spinner";
 import * as classes from "../../../utils/styles";
 import { MARKS_UPLOADED, SET_ERRORS } from "../../../redux/actionTypes";
-import { getTest } from "../../../redux/actions/facultyActions";
+
 const Body = () => {
   const dispatch = useDispatch();
-  const user = JSON.parse(localStorage.getItem("user"));
+  const user = useMemo(() => JSON.parse(localStorage.getItem("user")), []);
 
+  // Initial filter values; department comes from the logged‑in user.
+  const initialFilterValues = useMemo(
+    () => ({
+      department: user?.result?.department || "",
+      year: "",
+      section: "",
+      test: "",
+    }),
+    [user]
+  );
+  const [filterValues, setFilterValues] = useState(initialFilterValues);
+
+  const [marks, setMarks] = useState([]);
+  const [search, setSearch] = useState(false);
   const [error, setError] = useState({});
   const [loading, setLoading] = useState(false);
+
   const store = useSelector((state) => state);
   const tests = store.faculty.tests.result;
-  const [marks, setMarks] = useState([]);
+  const students = useSelector((state) => state.admin.students.result);
 
-  const [value, setValue] = useState({
-    department: "",
-    year: "",
-    section: "",
-    test: "",
-  });
-  const [search, setSearch] = useState(false);
+  // On mount, clear errors and set the department.
+  useEffect(() => {
+    dispatch({ type: SET_ERRORS, payload: {} });
+    setFilterValues((prev) => ({
+      ...prev,
+      department: user?.result?.department || "",
+    }));
+  }, [dispatch, user]);
 
+  // Update local error state if store errors change.
   useEffect(() => {
     if (Object.keys(store.errors).length !== 0) {
       setError(store.errors);
       setLoading(false);
-      setValue({ department: "", year: "", section: "", test: "" });
+      setFilterValues(initialFilterValues);
     }
-  }, [store.errors]);
+  }, [store.errors, initialFilterValues]);
 
-  const handleInputChange = (value, _id) => {
-    const newMarks = [...marks];
-    let index = newMarks.findIndex((m) => m._id === _id);
-    if (index === -1) {
-      newMarks.push({ _id, value });
-    } else {
-      newMarks[index].value = value;
-    }
-    setMarks(newMarks);
-  };
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    setSearch(true);
-    setLoading(true);
-    setError({});
-    dispatch(getStudent(value));
-  };
-  const students = useSelector((state) => state.admin.students.result);
-
-  const uploadMarks = (e) => {
-    setError({});
-    dispatch(
-      uploadMark(marks, value.department, value.section, value.year, value.test)
-    );
-  };
-
+  // When students data is loaded, stop the loading indicator.
   useEffect(() => {
-    if (students?.length !== 0) setLoading(false);
+    if (students?.length !== 0) {
+      setLoading(false);
+    }
   }, [students]);
 
-  useEffect(() => {
-    dispatch({ type: SET_ERRORS, payload: {} });
-    setValue({ ...value, department: user.result.department });
-  }, []);
-
+  // Listen for marks upload or errors to reset the form.
   useEffect(() => {
     if (store.errors || store.faculty.marksUploaded) {
       setLoading(false);
       if (store.faculty.marksUploaded) {
-        setValue({ department: "", year: "", test: "", section: "" });
+        setFilterValues(initialFilterValues);
         setSearch(false);
         dispatch({ type: SET_ERRORS, payload: {} });
         dispatch({ type: MARKS_UPLOADED, payload: false });
@@ -81,34 +74,80 @@ const Body = () => {
     } else {
       setLoading(true);
     }
-  }, [store.errors, store.faculty.marksUploaded]);
+  }, [
+    store.errors,
+    store.faculty.marksUploaded,
+    dispatch,
+    initialFilterValues,
+  ]);
 
+  // When both year and section are selected, fetch tests.
   useEffect(() => {
-    if (value.year !== "" && value.section !== "") {
-      dispatch(getTest(value));
+    if (filterValues.year !== "" && filterValues.section !== "") {
+      dispatch(getTest(filterValues));
     }
-  }, [value.year, value.section]);
+  }, [filterValues.year, filterValues.section, dispatch, filterValues]);
+
+  // Handle changes for marks input.
+  const handleInputChange = (val, _id) => {
+    setMarks((prevMarks) => {
+      const index = prevMarks.findIndex((item) => item._id === _id);
+      if (index === -1) {
+        return [...prevMarks, { _id, value: val }];
+      } else {
+        const newMarks = [...prevMarks];
+        newMarks[index].value = val;
+        return newMarks;
+      }
+    });
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    setSearch(true);
+    setLoading(true);
+    setError({});
+    dispatch(getStudent(filterValues));
+  };
+
+  const handleUpload = () => {
+    setError({});
+    dispatch(
+      uploadMark(
+        marks,
+        filterValues.department,
+        filterValues.section,
+        filterValues.year,
+        filterValues.test
+      )
+    );
+  };
 
   return (
-    <div className="flex-[0.8] mt-3">
+    <div className="flex-grow mt-3">
       <div className="space-y-5">
-        <div className="flex text-gray-400 items-center space-x-2">
+        {/* Header */}
+        <div className="flex items-center text-gray-400 space-x-2">
           <BoyIcon />
           <h1>All Students</h1>
         </div>
-        <div className=" mr-10 bg-white grid grid-cols-4 rounded-xl pt-6 pl-6 h-[29.5rem]">
+        {/* Main Container: flex layout for search form and table */}
+        <div className="mr-10 bg-white rounded-xl pt-6 pl-6 h-[29.5rem] flex flex-col md:flex-row">
+          {/* Search Form */}
           <form
-            className="flex flex-col space-y-2 col-span-1"
+            className="flex flex-col space-y-2 md:w-1/3"
             onSubmit={handleSubmit}
           >
             <label htmlFor="year">Year</label>
             <Select
               required
               displayEmpty
-              sx={{ height: 36, width: 224 }}
+              sx={{ height: 36, width: "100%" }}
               inputProps={{ "aria-label": "Without label" }}
-              value={value.year}
-              onChange={(e) => setValue({ ...value, year: e.target.value })}
+              value={filterValues.year}
+              onChange={(e) =>
+                setFilterValues({ ...filterValues, year: e.target.value })
+              }
             >
               <MenuItem value="">None</MenuItem>
               <MenuItem value="1">1</MenuItem>
@@ -116,28 +155,33 @@ const Body = () => {
               <MenuItem value="3">3</MenuItem>
               <MenuItem value="4">4</MenuItem>
             </Select>
-            {/* <label htmlFor="section">Section</label> */}
+
             <label htmlFor="section">Semester</label>
             <Select
               required
               displayEmpty
-              sx={{ height: 36, width: 224 }}
+              sx={{ height: 36, width: "100%" }}
               inputProps={{ "aria-label": "Without label" }}
-              value={value.section}
-              onChange={(e) => setValue({ ...value, section: e.target.value })}
+              value={filterValues.section}
+              onChange={(e) =>
+                setFilterValues({ ...filterValues, section: e.target.value })
+              }
             >
               <MenuItem value="">None</MenuItem>
               <MenuItem value="1">1</MenuItem>
               <MenuItem value="2">2</MenuItem>
             </Select>
-            <label htmlFor="year">Test</label>
+
+            <label htmlFor="test">Test</label>
             <Select
               required
               displayEmpty
-              sx={{ height: 36, width: 224 }}
+              sx={{ height: 36, width: "100%" }}
               inputProps={{ "aria-label": "Without label" }}
-              value={value.test}
-              onChange={(e) => setValue({ ...value, test: e.target.value })}
+              value={filterValues.test}
+              onChange={(e) =>
+                setFilterValues({ ...filterValues, test: e.target.value })
+              }
             >
               <MenuItem value="">None</MenuItem>
               {tests?.map((test, idx) => (
@@ -146,14 +190,17 @@ const Body = () => {
                 </MenuItem>
               ))}
             </Select>
+
             <button
-              className={`${classes.adminFormSubmitButton} w-56`}
+              className={`${classes.adminFormSubmitButton} w-full`}
               type="submit"
             >
               Search
             </button>
           </form>
-          <div className="col-span-3 mr-6">
+
+          {/* Students Table */}
+          <div className="md:w-2/3 mt-4 md:mt-0 md:ml-6">
             <div className={classes.loadingAndError}>
               {loading && (
                 <Spinner
@@ -170,79 +217,57 @@ const Body = () => {
                 </p>
               )}
             </div>
+
             {search &&
               !loading &&
               Object.keys(error).length === 0 &&
-              students?.length !== 0 && (
-                <div className={`${classes.adminData} h-[20rem]`}>
-                  <div className="grid grid-cols-8">
-                    <h1 className={`col-span-1 ${classes.adminDataHeading}`}>
-                      Sr no.
-                    </h1>
-                    <h1 className={`col-span-2 ${classes.adminDataHeading}`}>
-                      Name
-                    </h1>
-                    <h1 className={`col-span-2 ${classes.adminDataHeading}`}>
-                      Username
-                    </h1>
-
-                    <h1 className={`col-span-1 ${classes.adminDataHeading}`}>
-                      Section
-                    </h1>
-                    <h1 className={`col-span-2 ${classes.adminDataHeading}`}>
-                      Marks
-                    </h1>
+              students?.length > 0 && (
+                <div
+                  className={`${classes.adminData} overflow-auto`}
+                  style={{ maxHeight: "20rem" }}
+                >
+                  {/* Table Header using flex */}
+                  <div className="flex items-center border-b border-gray-300 py-2">
+                    <span className="flex-1 font-bold">Sr no.</span>
+                    <span className="flex-2 font-bold">Name</span>
+                    <span className="flex-2 font-bold">Username</span>
+                    <span className="flex-1 font-bold">Section</span>
+                    <span className="flex-2 font-bold">Marks</span>
                   </div>
-                  {students?.map((stu, idx) => (
+                  {/* Table Rows */}
+                  {students.map((stu, idx) => (
                     <div
-                      key={idx}
-                      className={`${classes.adminDataBody} grid-cols-8`}
+                      key={stu._id}
+                      className="flex items-center border-b border-gray-100 py-2"
                     >
-                      <h1
-                        className={`col-span-1 ${classes.adminDataBodyFields}`}
-                      >
-                        {idx + 1}
-                      </h1>
-                      <h1
-                        className={`col-span-2 ${classes.adminDataBodyFields}`}
-                      >
-                        {stu.name}
-                      </h1>
-                      <h1
-                        className={`col-span-2 ${classes.adminDataBodyFields}`}
-                      >
-                        {stu.username}
-                      </h1>
-
-                      <h1
-                        className={`col-span-1 ${classes.adminDataBodyFields}`}
-                      >
-                        {stu.section}
-                      </h1>
+                      <span className="flex-1">{idx + 1}</span>
+                      <span className="flex-2">{stu.name}</span>
+                      <span className="flex-2">{stu.username}</span>
+                      <span className="flex-1">{stu.section}</span>
                       <input
+                        type="text"
+                        className="flex-2 border-2 w-24 px-2 h-8"
                         onChange={(e) =>
                           handleInputChange(e.target.value, stu._id)
                         }
-                        value={stu.marks}
-                        className="col-span-2 border-2 w-24 px-2 h-8"
-                        type="text"
+                        value={stu.marks || ""}
                       />
                     </div>
                   ))}
                 </div>
               )}
             {search && Object.keys(error).length === 0 && (
-              <div className="">
+              <div className="mt-5 flex justify-end">
                 <button
-                  onClick={uploadMarks}
-                  className={`${classes.adminFormSubmitButton} bg-blue-500 mt-5 ml-[22rem]`}
+                  onClick={handleUpload}
+                  className={`${classes.adminFormSubmitButton} bg-blue-500`}
                 >
                   Upload
                 </button>
               </div>
             )}
             {(error.examError || error.backendError) && (
-              <p className="text-red-500 text-2xl font-bold ml-32">
+              <p className="text-red-500 text-2xl font-bold mt-4 text-center">
                 {error.examError || error.backendError}
               </p>
             )}

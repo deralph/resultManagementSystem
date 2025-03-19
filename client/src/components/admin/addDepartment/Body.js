@@ -5,80 +5,95 @@ import { addDepartment } from "../../../redux/actions/adminActions";
 import Spinner from "../../../utils/Spinner";
 import { ADD_DEPARTMENT, SET_ERRORS } from "../../../redux/actionTypes";
 import * as classes from "../../../utils/styles";
+
 const Body = () => {
   const dispatch = useDispatch();
+  const { errors, admin } = useSelector((state) => state);
+
   const [loading, setLoading] = useState(false);
   const [department, setDepartment] = useState("");
-  const store = useSelector((state) => state);
   const [error, setError] = useState({});
+
   useEffect(() => {
-    if (Object.keys(store.errors).length !== 0) {
-      setError(store.errors);
+    if (errors && Object.keys(errors).length > 0) {
+      setError(errors);
+      setLoading(false);
     }
-  }, [store.errors]);
+  }, [errors]);
+
+  useEffect(() => {
+    if (admin.departmentAdded) {
+      setDepartment("");
+      dispatch({ type: SET_ERRORS, payload: {} });
+      dispatch({ type: ADD_DEPARTMENT, payload: false });
+      setLoading(false);
+    }
+  }, [admin.departmentAdded, dispatch]);
+
+  useEffect(() => {
+    dispatch({ type: SET_ERRORS, payload: {} });
+  }, [dispatch]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
     setError({});
     setLoading(true);
     dispatch(addDepartment({ department }));
-    setDepartment("");
   };
 
-  useEffect(() => {
-    if (store.errors || store.admin.departmentAdded) {
-      setLoading(false);
-      if (store.admin.departmentAdded) {
-        setDepartment("");
-        dispatch({ type: SET_ERRORS, payload: {} });
-        dispatch({ type: ADD_DEPARTMENT, payload: false });
-      }
-    } else {
-      setLoading(true);
-    }
-  }, [store.errors, store.admin.departmentAdded]);
-
-  useEffect(() => {
-    dispatch({ type: SET_ERRORS, payload: {} });
-  }, []);
+  const handleClear = () => {
+    setDepartment("");
+    setError({});
+  };
 
   return (
-    <div className="flex-[0.8] mt-3">
+    <div className="flex-1 mt-3 p-4">
       <div className="space-y-5">
-        <div className="flex text-gray-400 items-center space-x-2">
+        {/* Header */}
+        <div className="flex items-center space-x-2 text-gray-400">
           <AddIcon />
-          <h1>Add Subject</h1>
+          <h1 className="text-lg font-semibold">Add Department</h1>
         </div>
-        <div className=" mr-10 bg-white flex flex-col rounded-xl ">
-          <form className={classes.adminForm0} onSubmit={handleSubmit}>
-            <div className="flex py-10 ml-10 space-x-28">
-              <div className="flex space-y-10 ">
-                <div className="flex space-x-3">
-                  <h1 className={classes.adminLabel}>Department :</h1>
 
-                  <input
-                    placeholder="Department"
-                    required
-                    className={classes.adminInput}
-                    type="text"
-                    value={department}
-                    onChange={(e) => setDepartment(e.target.value)}
-                  />
-                </div>
+        {/* Form Container */}
+        <div className="bg-white rounded-xl p-6 shadow-md">
+          <form className={classes.adminForm0} onSubmit={handleSubmit}>
+            <div className="flex flex-col sm:flex-row sm:items-center py-6 space-y-4 sm:space-y-0 sm:space-x-8">
+              {/* Input Field */}
+              <div className="flex flex-col sm:flex-row sm:items-center space-x-3">
+                <h1 className={classes.adminLabel}>Department:</h1>
+                <input
+                  placeholder="Enter Department Name"
+                  required
+                  className={classes.adminInput}
+                  type="text"
+                  value={department}
+                  onChange={(e) => setDepartment(e.target.value)}
+                />
               </div>
             </div>
-            <div className={classes.adminFormButton}>
+
+            {/* Buttons */}
+            <div
+              className={
+                classes.adminFormButton +
+                " mt-4 flex flex-col sm:flex-row sm:space-x-4"
+              }
+            >
               <button className={classes.adminFormSubmitButton} type="submit">
                 Submit
               </button>
               <button
-                onClick={() => setDepartment("")}
+                onClick={handleClear}
                 className={classes.adminFormClearButton}
-                type="button">
+                type="button"
+              >
                 Clear
               </button>
             </div>
-            <div className={classes.loadingAndError}>
+
+            {/* Loading and Error Messages */}
+            <div className={classes.loadingAndError + " mt-2"}>
               {loading && (
                 <Spinner
                   message="Adding Department"

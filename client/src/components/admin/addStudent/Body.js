@@ -8,87 +8,78 @@ import MenuItem from "@mui/material/MenuItem";
 import Spinner from "../../../utils/Spinner";
 import { ADD_STUDENT, SET_ERRORS } from "../../../redux/actionTypes";
 import * as classes from "../../../utils/styles";
-import * as XLSX from "xlsx"; // Import SheetJS for Excel parsing
+import * as XLSX from "xlsx"; // For Excel parsing
 import axios from "axios";
+
+const initialFormState = {
+  name: "",
+  dob: "",
+  email: "",
+  department: "",
+  contactNumber: "",
+  avatar: "",
+  batch: "",
+  gender: "",
+  year: "",
+  fatherName: "",
+  motherName: "",
+  section: "",
+  matricNo: "",
+  fatherContactNumber: "",
+  motherContactNumber: "",
+};
 
 const Body = () => {
   const dispatch = useDispatch();
-  const store = useSelector((state) => state);
+  const errorRef = useRef();
   const departments = useSelector((state) => state.admin.allDepartment);
+  const errorsFromStore = useSelector((state) => state.errors);
+  const { studentAdded } = useSelector((state) => state.admin);
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState({});
-  const errorRef = useRef();
-
-  const [value, setValue] = useState({
-    name: "",
-    dob: "",
-    email: "",
-    department: "",
-    contactNumber: "",
-    avatar: "",
-    batch: "",
-    gender: "",
-    year: "",
-    fatherName: "",
-    motherName: "",
-    section: "",
-    matricNo: "",
-    fatherContactNumber: "",
-    motherContactNumber: "",
-  });
-
-  // State to store Excel parsed data
+  const [formData, setFormData] = useState(initialFormState);
   const [excelData, setExcelData] = useState([]);
 
+  // Update error state when errors are set in the store
   useEffect(() => {
-    if (Object.keys(store.errors).length !== 0) {
-      setError(store.errors);
-      errorRef.current.scrollIntoView({ behavior: "smooth" });
-      setValue({ ...value, email: "" });
+    if (errorsFromStore && Object.keys(errorsFromStore).length !== 0) {
+      setError(errorsFromStore);
+      errorRef.current &&
+        errorRef.current.scrollIntoView({ behavior: "smooth" });
+      setFormData((prevData) => ({ ...prevData, email: "" }));
+      setLoading(false);
     }
-  }, [store.errors]);
+  }, [errorsFromStore]);
+
+  // Handle successful student addition
+  useEffect(() => {
+    if (studentAdded) {
+      setLoading(false);
+      setFormData(initialFormState);
+      dispatch({ type: SET_ERRORS, payload: {} });
+      dispatch({ type: ADD_STUDENT, payload: false });
+    }
+  }, [studentAdded, dispatch]);
+
+  // Clear any errors on mount
+  useEffect(() => {
+    dispatch({ type: SET_ERRORS, payload: {} });
+  }, [dispatch]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    dispatch(addStudent(value));
     setError({});
     setLoading(true);
+    dispatch(addStudent(formData));
   };
 
-  useEffect(() => {
-    if (store.errors || store.admin.studentAdded) {
-      setLoading(false);
-      if (store.admin.studentAdded) {
-        setValue({
-          name: "",
-          dob: "",
-          email: "",
-          department: "",
-          contactNumber: "",
-          avatar: "",
-          batch: "",
-          gender: "",
-          year: "",
-          fatherName: "",
-          motherName: "",
-          section: "",
-          matricNo: "",
-          fatherContactNumber: "",
-          motherContactNumber: "",
-        });
-        dispatch({ type: SET_ERRORS, payload: {} });
-        dispatch({ type: ADD_STUDENT, payload: false });
-      }
-    } else {
-      setLoading(true);
-    }
-  }, [store.errors, store.admin.studentAdded]);
+  const handleClear = () => {
+    setFormData(initialFormState);
+    setError({});
+  };
 
-  useEffect(() => {
-    dispatch({ type: SET_ERRORS, payload: {} });
-  }, []);
-
-  // Function to handle Excel file upload and parsing
+  // Handle Excel file upload and parsing
   const handleExcelUpload = (e) => {
     const file = e.target.files[0];
     if (file) {
@@ -98,11 +89,9 @@ const Body = () => {
         const workbook = XLSX.read(binaryStr, { type: "binary" });
         const worksheetName = workbook.SheetNames[0];
         const worksheet = workbook.Sheets[worksheetName];
-        // Convert the sheet data to JSON.
-        // Ensure your Excel header names match your form keys.
         const jsonData = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
 
-        // Convert all string values in each row to lowercase.
+        // Convert string values to lowercase and trim whitespace
         const lowerCasedData = jsonData.map((row) => {
           const newRow = {};
           Object.keys(row).forEach((key) => {
@@ -119,22 +108,17 @@ const Body = () => {
     }
   };
 
-  // Function to handle the submission of the Excel data to the server
-
-  // Assuming you have a state variable "excelData" (an array of student objects)
-  // and a setter "setExcelData" available in your component.
+  // Submit Excel data in bulk to the server
   const handleExcelSubmit = async (e) => {
     e.preventDefault();
-    console.log(excelData);
     if (excelData.length > 0) {
       try {
-        // Post the entire array of student objects to the bulk endpoint
         const response = await axios.post(
-          "http://localhost:5000/api/admin/addstudentbulk",
+          // "http://localhost:5000/api/admin/addstudentbulk",
+          "https://resultmanagementsystem-exs8.onrender.com/api/admin/addstudentbulk",
           excelData
         );
         console.log("Bulk upload response:", response.data);
-        // Optionally, clear the excelData state after a successful upload
         setExcelData([]);
       } catch (error) {
         console.error(
@@ -146,21 +130,24 @@ const Body = () => {
   };
 
   return (
-    <div className="flex-[0.8] mt-3">
+    <div className="flex-1 mt-3 p-4">
       <div className="space-y-10">
-        {/* Section for single student form */}
+        {/* Single Student Form Section */}
         <div className="form-section">
-          <div className="flex text-gray-400 items-center space-x-2">
+          <div className="flex items-center space-x-2 text-gray-400">
             <AddIcon />
-            <h1>Add Student</h1>
+            <h1 className="text-lg font-semibold">Add Student</h1>
           </div>
-          <div className="mr-10 bg-white flex flex-col rounded-xl">
+          <div className="bg-white flex flex-col rounded-xl p-4 shadow-md">
             <form
-              className={`${classes.adminForm0} scrollbar-thin scrollbar-track-white scrollbar-thumb-black overflow-y-scroll h-[30rem]`}
+              className={`${classes.adminForm0} overflow-y-scroll max-h-[30rem]`}
               onSubmit={handleSubmit}
             >
-              <div className={classes.adminForm1}>
-                <div className={classes.adminForm2l}>
+              <div
+                className={`${classes.adminForm1} flex flex-col md:flex-row md:space-x-4`}
+              >
+                {/* Left Side Fields */}
+                <div className={`${classes.adminForm2l} flex-1 space-y-4`}>
                   <div className={classes.adminForm3}>
                     <h1 className={classes.adminLabel}>Name :</h1>
                     <input
@@ -168,9 +155,9 @@ const Body = () => {
                       required
                       className={classes.adminInput}
                       type="text"
-                      value={value.name}
+                      value={formData.name}
                       onChange={(e) =>
-                        setValue({ ...value, name: e.target.value })
+                        setFormData({ ...formData, name: e.target.value })
                       }
                     />
                   </div>
@@ -181,9 +168,9 @@ const Body = () => {
                       placeholder="DD/MM/YYYY"
                       className={classes.adminInput}
                       type="date"
-                      value={value.dob}
+                      value={formData.dob}
                       onChange={(e) =>
-                        setValue({ ...value, dob: e.target.value })
+                        setFormData({ ...formData, dob: e.target.value })
                       }
                     />
                   </div>
@@ -194,9 +181,9 @@ const Body = () => {
                       placeholder="Email"
                       className={classes.adminInput}
                       type="email"
-                      value={value.email}
+                      value={formData.email}
                       onChange={(e) =>
-                        setValue({ ...value, email: e.target.value })
+                        setFormData({ ...formData, email: e.target.value })
                       }
                     />
                   </div>
@@ -207,9 +194,9 @@ const Body = () => {
                       placeholder="yyyy-yyyy"
                       className={classes.adminInput}
                       type="text"
-                      value={value.batch}
+                      value={formData.batch}
                       onChange={(e) =>
-                        setValue({ ...value, batch: e.target.value })
+                        setFormData({ ...formData, batch: e.target.value })
                       }
                     />
                   </div>
@@ -220,9 +207,9 @@ const Body = () => {
                       placeholder="Father's Name"
                       className={classes.adminInput}
                       type="text"
-                      value={value.fatherName}
+                      value={formData.fatherName}
                       onChange={(e) =>
-                        setValue({ ...value, fatherName: e.target.value })
+                        setFormData({ ...formData, fatherName: e.target.value })
                       }
                     />
                   </div>
@@ -233,9 +220,9 @@ const Body = () => {
                       placeholder="Mother's Name"
                       className={classes.adminInput}
                       type="text"
-                      value={value.motherName}
+                      value={formData.motherName}
                       onChange={(e) =>
-                        setValue({ ...value, motherName: e.target.value })
+                        setFormData({ ...formData, motherName: e.target.value })
                       }
                     />
                   </div>
@@ -246,9 +233,9 @@ const Body = () => {
                       displayEmpty
                       sx={{ height: 36 }}
                       inputProps={{ "aria-label": "Without label" }}
-                      value={value.year}
+                      value={formData.year}
                       onChange={(e) =>
-                        setValue({ ...value, year: e.target.value })
+                        setFormData({ ...formData, year: e.target.value })
                       }
                     >
                       <MenuItem value="">None</MenuItem>
@@ -259,7 +246,10 @@ const Body = () => {
                     </Select>
                   </div>
                 </div>
-                <div className={classes.adminForm2r}>
+                {/* Right Side Fields */}
+                <div
+                  className={`${classes.adminForm2r} flex-1 space-y-4 mt-4 md:mt-0`}
+                >
                   <div className={classes.adminForm3}>
                     <h1 className={classes.adminLabel}>Department :</h1>
                     <Select
@@ -267,9 +257,9 @@ const Body = () => {
                       displayEmpty
                       sx={{ height: 36 }}
                       inputProps={{ "aria-label": "Without label" }}
-                      value={value.department}
+                      value={formData.department}
                       onChange={(e) =>
-                        setValue({ ...value, department: e.target.value })
+                        setFormData({ ...formData, department: e.target.value })
                       }
                     >
                       <MenuItem value="">None</MenuItem>
@@ -287,9 +277,9 @@ const Body = () => {
                       displayEmpty
                       sx={{ height: 36 }}
                       inputProps={{ "aria-label": "Without label" }}
-                      value={value.gender}
+                      value={formData.gender}
                       onChange={(e) =>
-                        setValue({ ...value, gender: e.target.value })
+                        setFormData({ ...formData, gender: e.target.value })
                       }
                     >
                       <MenuItem value="">None</MenuItem>
@@ -305,9 +295,12 @@ const Body = () => {
                       placeholder="Contact Number"
                       className={classes.adminInput}
                       type="number"
-                      value={value.contactNumber}
+                      value={formData.contactNumber}
                       onChange={(e) =>
-                        setValue({ ...value, contactNumber: e.target.value })
+                        setFormData({
+                          ...formData,
+                          contactNumber: e.target.value,
+                        })
                       }
                     />
                   </div>
@@ -320,10 +313,10 @@ const Body = () => {
                       placeholder="Father's Contact Number"
                       className={classes.adminInput}
                       type="number"
-                      value={value.fatherContactNumber}
+                      value={formData.fatherContactNumber}
                       onChange={(e) =>
-                        setValue({
-                          ...value,
+                        setFormData({
+                          ...formData,
                           fatherContactNumber: e.target.value,
                         })
                       }
@@ -338,10 +331,10 @@ const Body = () => {
                       placeholder="Mother's Contact Number"
                       className={classes.adminInput}
                       type="number"
-                      value={value.motherContactNumber}
+                      value={formData.motherContactNumber}
                       onChange={(e) =>
-                        setValue({
-                          ...value,
+                        setFormData({
+                          ...formData,
                           motherContactNumber: e.target.value,
                         })
                       }
@@ -354,10 +347,10 @@ const Body = () => {
                       placeholder="Matric Number"
                       className={classes.adminInput}
                       type="number"
-                      value={value.matricNo}
+                      value={formData.matricNo}
                       onChange={(e) =>
-                        setValue({
-                          ...value,
+                        setFormData({
+                          ...formData,
                           matricNo: e.target.value,
                         })
                       }
@@ -370,9 +363,9 @@ const Body = () => {
                       displayEmpty
                       sx={{ height: 36 }}
                       inputProps={{ "aria-label": "Without label" }}
-                      value={value.section}
+                      value={formData.section}
                       onChange={(e) =>
-                        setValue({ ...value, section: e.target.value })
+                        setFormData({ ...formData, section: e.target.value })
                       }
                     >
                       <MenuItem value="">None</MenuItem>
@@ -387,44 +380,29 @@ const Body = () => {
                       type="file"
                       multiple={false}
                       onDone={({ base64 }) =>
-                        setValue({ ...value, avatar: base64 })
+                        setFormData({ ...formData, avatar: base64 })
                       }
                     />
                   </div>
                 </div>
               </div>
-              <div className={classes.adminFormButton}>
+              {/* Buttons */}
+              <div
+                className={`${classes.adminFormButton} flex flex-col sm:flex-row sm:space-x-4 mt-4`}
+              >
                 <button className={classes.adminFormSubmitButton} type="submit">
                   Submit
                 </button>
                 <button
-                  onClick={() => {
-                    setValue({
-                      name: "",
-                      dob: "",
-                      email: "",
-                      department: "",
-                      contactNumber: "",
-                      avatar: "",
-                      batch: "",
-                      gender: "",
-                      year: "",
-                      fatherName: "",
-                      motherName: "",
-                      section: "",
-                      matricNo: "",
-                      fatherContactNumber: "",
-                      motherContactNumber: "",
-                    });
-                    setError({});
-                  }}
+                  onClick={handleClear}
                   className={classes.adminFormClearButton}
                   type="button"
                 >
                   Clear
                 </button>
               </div>
-              <div ref={errorRef} className={classes.loadingAndError}>
+              {/* Loading & Error */}
+              <div ref={errorRef} className={`${classes.loadingAndError} mt-4`}>
                 {loading && (
                   <Spinner
                     message="Adding Student"
@@ -435,7 +413,7 @@ const Body = () => {
                   />
                 )}
                 {(error.emailError || error.backendError) && (
-                  <p className="text-red-500">
+                  <p className="text-red-500 mt-2">
                     {error.emailError || error.backendError}
                   </p>
                 )}
@@ -444,17 +422,18 @@ const Body = () => {
           </div>
         </div>
 
-        {/* Separate section for Excel upload */}
+        {/* Excel Upload Section */}
         <div className="excel-upload-section mt-8">
-          <div className="flex text-gray-400 items-center space-x-2">
+          <div className="flex items-center space-x-2 text-gray-400">
             <AddIcon />
-            <h1>Upload Excel Sheet</h1>
+            <h1 className="text-lg font-semibold">Upload Excel Sheet</h1>
           </div>
-          <div className="mr-10 bg-white flex flex-col rounded-xl p-4">
+          <div className="bg-white flex flex-col rounded-xl p-4 shadow-md">
             <input
               type="file"
               accept=".xls, .xlsx"
               onChange={handleExcelUpload}
+              className="mb-4"
             />
             {excelData.length > 0 && (
               <div className="mt-4">
@@ -464,15 +443,13 @@ const Body = () => {
                 </pre>
               </div>
             )}
-            <div>
-              <button
-                className={`bg-red-400 py-3 px-12 flex font-bold text-white rounded-2xl mt-4`}
-                onClick={handleExcelSubmit}
-                type="button"
-              >
-                Upload Excel Data
-              </button>
-            </div>
+            <button
+              onClick={handleExcelSubmit}
+              className="bg-red-400 py-3 px-12 font-bold text-white rounded-2xl mt-4 self-start"
+              type="button"
+            >
+              Upload Excel Data
+            </button>
           </div>
         </div>
       </div>

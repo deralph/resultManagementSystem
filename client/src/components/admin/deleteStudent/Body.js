@@ -10,34 +10,52 @@ import { DELETE_STUDENT, SET_ERRORS } from "../../../redux/actionTypes";
 const Body = () => {
   const dispatch = useDispatch();
   const departments = useSelector((state) => state.admin.allDepartment);
+  const errorsFromStore = useSelector((state) => state.errors);
+  const studentDeleted = useSelector((state) => state.admin.studentDeleted);
+  const students = useSelector((state) => state.admin.students?.result) || [];
+
   const [error, setError] = useState({});
   const [loading, setLoading] = useState(false);
-  const store = useSelector((state) => state);
   const [checkedValue, setCheckedValue] = useState([]);
-
-  const [value, setValue] = useState({
-    department: "",
-    year: "",
-  });
+  const [value, setValue] = useState({ department: "", year: "" });
   const [search, setSearch] = useState(false);
 
+  // Listen for errors from Redux and update local state
   useEffect(() => {
-    if (Object.keys(store.errors).length !== 0) {
-      setError(store.errors);
+    if (errorsFromStore && Object.keys(errorsFromStore).length !== 0) {
+      setError(errorsFromStore);
       setLoading(false);
     }
-  }, [store.errors]);
+  }, [errorsFromStore]);
 
-  const handleInputChange = (e) => {
-    const tempCheck = checkedValue;
-    let index;
-    if (e.target.checked) {
-      tempCheck.push(e.target.value);
-    } else {
-      index = tempCheck.indexOf(e.target.value);
-      tempCheck.splice(index, 1);
+  // Reset form when deletion is complete
+  useEffect(() => {
+    if (studentDeleted) {
+      setValue({ department: "", year: "" });
+      setSearch(false);
+      setLoading(false);
+      dispatch({ type: DELETE_STUDENT, payload: false });
     }
-    setCheckedValue(tempCheck);
+  }, [studentDeleted, dispatch]);
+
+  // Stop loading when students data is received
+  useEffect(() => {
+    if (students?.length) {
+      setLoading(false);
+    }
+  }, [students]);
+
+  // Clear errors on component mount
+  useEffect(() => {
+    dispatch({ type: SET_ERRORS, payload: {} });
+  }, [dispatch]);
+
+  // Use immutable updates for checkbox state
+  const handleInputChange = (e) => {
+    const { value, checked } = e.target;
+    setCheckedValue((prev) =>
+      checked ? [...prev, value] : prev.filter((v) => v !== value)
+    );
   };
 
   const handleSubmit = (e) => {
@@ -47,52 +65,34 @@ const Body = () => {
     setError({});
     dispatch(getStudent(value));
   };
-  const students = useSelector((state) => state.admin.students.result);
 
-  const dltStudent = (e) => {
+  const handleDelete = () => {
     setError({});
     setLoading(true);
     dispatch(deleteStudent(checkedValue));
   };
 
-  useEffect(() => {
-    if (store.admin.studentDeleted) {
-      setValue({ department: "", year: "" });
-      setSearch(false);
-      setLoading(false);
-      dispatch({ type: DELETE_STUDENT, payload: false });
-    }
-  }, [store.admin.studentDeleted]);
-
-  useEffect(() => {
-    if (students?.length !== 0) setLoading(false);
-  }, [students]);
-
-  useEffect(() => {
-    dispatch({ type: SET_ERRORS, payload: {} });
-  }, []);
-
   return (
-    <div className="flex-[0.8] mt-3">
+    <div className="flex-1 mt-3">
       <div className="space-y-5">
         <div className="flex text-gray-400 items-center space-x-2">
           <DeleteIcon />
-          <h1>Delete Faculty</h1>
+          <h1>Delete Student</h1>
         </div>
-        <div className=" mr-10 bg-white grid grid-cols-4 rounded-xl pt-6 pl-6 h-[29.5rem]">
-          <form
-            className="flex flex-col space-y-2 col-span-1"
-            onSubmit={handleSubmit}>
+        <div className="bg-white rounded-xl pt-6 pl-6 pr-6 pb-6 grid grid-cols-1 md:grid-cols-4 gap-4">
+          {/* Search Form */}
+          <form className="flex flex-col space-y-2" onSubmit={handleSubmit}>
             <label htmlFor="department">Department</label>
             <Select
               required
               displayEmpty
-              sx={{ height: 36, width: 224 }}
+              sx={{ height: 36, width: "100%" }}
               inputProps={{ "aria-label": "Without label" }}
               value={value.department}
               onChange={(e) =>
                 setValue({ ...value, department: e.target.value })
-              }>
+              }
+            >
               <MenuItem value="">None</MenuItem>
               {departments?.map((dp, idx) => (
                 <MenuItem key={idx} value={dp.department}>
@@ -104,24 +104,27 @@ const Body = () => {
             <Select
               required
               displayEmpty
-              sx={{ height: 36, width: 224 }}
+              sx={{ height: 36, width: "100%" }}
               inputProps={{ "aria-label": "Without label" }}
               value={value.year}
-              onChange={(e) => setValue({ ...value, year: e.target.value })}>
+              onChange={(e) => setValue({ ...value, year: e.target.value })}
+            >
               <MenuItem value="">None</MenuItem>
               <MenuItem value="1">1</MenuItem>
               <MenuItem value="2">2</MenuItem>
               <MenuItem value="3">3</MenuItem>
               <MenuItem value="4">4</MenuItem>
             </Select>
-
             <button
-              className={`${classes.adminFormSubmitButton} w-56`}
-              type="submit">
+              className={`${classes.adminFormSubmitButton} w-full`}
+              type="submit"
+            >
               Search
             </button>
           </form>
-          <div className="col-span-3 mr-6">
+
+          {/* Student Data */}
+          <div className="md:col-span-3">
             <div className={classes.loadingAndError}>
               {loading && (
                 <Spinner
@@ -141,62 +144,42 @@ const Body = () => {
             {search &&
               !loading &&
               Object.keys(error).length === 0 &&
-              students?.length !== 0 && (
-                <div className={`${classes.adminData} h-[20rem]`}>
-                  <div className="grid grid-cols-8">
-                    <h1 className={`col-span-1 ${classes.adminDataHeading}`}>
-                      Select
-                    </h1>
-                    <h1 className={`col-span-1 ${classes.adminDataHeading}`}>
-                      Sr no.
-                    </h1>
-                    <h1 className={`col-span-2 ${classes.adminDataHeading}`}>
-                      Name
-                    </h1>
-                    <h1 className={`col-span-2 ${classes.adminDataHeading}`}>
-                      Username
-                    </h1>
-
-                    <h1 className={`col-span-2 ${classes.adminDataHeading}`}>
-                      Section
-                    </h1>
+              students?.length > 0 && (
+                <div className={`${classes.adminData} max-h-80 overflow-auto`}>
+                  <div className="grid grid-cols-8 gap-2 font-semibold border-b pb-2">
+                    <span className="col-span-1">Select</span>
+                    <span className="col-span-1">Sr no.</span>
+                    <span className="col-span-2">Name</span>
+                    <span className="col-span-2">Username</span>
+                    <span className="col-span-2">Section</span>
                   </div>
-                  {students?.map((adm, idx) => (
+                  {students.map((student, idx) => (
                     <div
-                      key={idx}
-                      className={`${classes.adminDataBody} grid-cols-8`}>
+                      key={student._id}
+                      className="grid grid-cols-8 gap-2 items-center py-2 border-b"
+                    >
                       <input
-                        onChange={handleInputChange}
-                        value={adm._id}
-                        className="col-span-1 border-2 w-16 h-4 mt-3 px-2 "
                         type="checkbox"
+                        onChange={handleInputChange}
+                        checked={checkedValue.includes(student._id)}
+                        value={student._id}
+                        className="col-span-1 border-2 w-5 h-5"
                       />
-                      <h1
-                        className={`col-span-1 ${classes.adminDataBodyFields}`}>
-                        {idx + 1}
-                      </h1>
-                      <h1
-                        className={`col-span-2 ${classes.adminDataBodyFields}`}>
-                        {adm.name}
-                      </h1>
-                      <h1
-                        className={`col-span-2 ${classes.adminDataBodyFields}`}>
-                        {adm.username}
-                      </h1>
-
-                      <h1
-                        className={`col-span-2 ${classes.adminDataBodyFields}`}>
-                        {adm.section}
-                      </h1>
+                      <span className="col-span-1">{idx + 1}</span>
+                      <span className="col-span-2">{student.name}</span>
+                      <span className="col-span-2">{student.username}</span>
+                      <span className="col-span-2">{student.section}</span>
                     </div>
                   ))}
                 </div>
               )}
             {search && Object.keys(error).length === 0 && (
-              <div className="space-x-3 flex items-center justify-center mt-5">
+              <div className="flex items-center justify-center mt-5">
                 <button
-                  onClick={dltStudent}
-                  className={`${classes.adminFormSubmitButton} bg-blue-500`}>
+                  onClick={handleDelete}
+                  disabled={checkedValue.length === 0}
+                  className={`${classes.adminFormSubmitButton} bg-blue-500 w-full md:w-auto`}
+                >
                   Delete
                 </button>
               </div>

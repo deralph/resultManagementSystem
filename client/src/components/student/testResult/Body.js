@@ -1,21 +1,16 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import MenuBookIcon from "@mui/icons-material/MenuBook";
 import { useDispatch, useSelector } from "react-redux";
-import { MenuItem, Select } from "@mui/material";
-import Spinner from "../../../utils/Spinner";
 import { SET_ERRORS } from "../../../redux/actionTypes";
-import * as classes from "../../../utils/styles";
 
 const Body = () => {
   const dispatch = useDispatch();
   const [error, setError] = useState({});
 
-  // Get test results from Redux (may be cleared later)
+  // Retrieve test results from Redux; fallback to sample data if empty.
   const testResultFromStore = useSelector(
     (state) => state.student.testResult.result
   );
-
-  // Sample test results to display if Redux doesn't have any data
   const sampleTestResult = [
     {
       subjectCode: "CSC 201",
@@ -53,27 +48,30 @@ const Body = () => {
       totalMarks: 62,
     },
   ];
-
-  // Compute a derived value for display.
-  // If Redux test results exist and are nonempty, use them; otherwise use sample data.
   const displayResult =
     testResultFromStore && testResultFromStore.length > 0
       ? testResultFromStore
       : sampleTestResult;
 
-  const [loading, setLoading] = useState(false);
-  const store = useSelector((state) => state);
-  const [search, setSearch] = useState(false);
+  // Augment each course with a random unit property (2 or 3).
+  // useMemo prevents reassigning new random units on every render.
+  const displayResultWithUnits = useMemo(() => {
+    return displayResult.map((item) => ({
+      ...item,
+      unit: item.unit || (Math.random() > 0.5 ? 2 : 3),
+    }));
+  }, [displayResult]);
 
+  // Listen for errors in Redux and update local error state.
+  const store = useSelector((state) => state);
   useEffect(() => {
     if (Object.keys(store.errors).length !== 0) {
       setError(store.errors);
-      setLoading(false);
     }
   }, [store.errors]);
 
-  // Helper function to calculate grade based on percentage
-  const computeGrade = (totalMarks) => {
+  // Calculate grade based on percentage (marks / totalMarks * 100)
+  const computeGrade = (marks, totalMarks) => {
     const percentage = totalMarks;
     if (percentage >= 70) return "A";
     if (percentage >= 60) return "B";
@@ -83,73 +81,71 @@ const Body = () => {
     return "F";
   };
 
+  // Mapping from letter grade to grade points on a 5-point scale.
+  const gradePoints = { A: 5, B: 4, C: 3, D: 2, E: 1, F: 0 };
+
+  // Compute GPA as the weighted average of grade points by course unit.
+  const computedGPA = useMemo(() => {
+    const totalWeighted = displayResultWithUnits.reduce((acc, item) => {
+      const grade = computeGrade(item.marks, item.totalMarks);
+      return acc + gradePoints[grade] * item.unit;
+    }, 0);
+    const totalUnits = displayResultWithUnits.reduce(
+      (acc, item) => acc + item.unit,
+      0
+    );
+    return totalUnits ? (totalWeighted / totalUnits).toFixed(2) : "N/A";
+  }, [displayResultWithUnits]);
+
   return (
-    <div className="flex-[0.8] mt-3">
+    <div className="flex-grow mt-3">
       <div className="space-y-5">
-        <div className="flex text-gray-400 items-center space-x-2">
+        {/* Header */}
+        <div className="flex items-center text-gray-400 space-x-2">
           <MenuBookIcon />
-          <h1>All Courses</h1>
+          <h1 className="text-xl font-semibold">All Courses</h1>
         </div>
-        <div className="mr-10 bg-white rounded-xl pt-6 pl-6 h-[29.5rem]">
-          <div className="col-span-3 mr-6">
-            {/* Conditions commented out for display */}
-            {true && (
-              <div className={classes.adminData}>
-                {/* Updated grid columns to 9 */}
-                <div className="grid grid-cols-9">
-                  <h1 className={`${classes.adminDataHeading} col-span-1`}>
-                    Sr no.
-                  </h1>
-                  <h1 className={`${classes.adminDataHeading} col-span-1`}>
-                    Course Code
-                  </h1>
-                  <h1 className={`${classes.adminDataHeading} col-span-2`}>
-                    Course Name
-                  </h1>
-                  <h1 className={`${classes.adminDataHeading} col-span-1`}>
-                    Test
-                  </h1>
-                  <h1 className={`${classes.adminDataHeading} col-span-1`}>
-                    Marks Obtained
-                  </h1>
-                  <h1 className={`${classes.adminDataHeading} col-span-1`}>
-                    Total Marks
-                  </h1>
-                  <h1 className={`${classes.adminDataHeading} col-span-2`}>
-                    Grade
-                  </h1>
-                </div>
-                {displayResult.map((res, idx) => (
-                  <div
-                    key={idx}
-                    className={`${classes.adminDataBody} grid grid-cols-9`}
-                  >
-                    <h1 className={`col-span-1 ${classes.adminDataBodyFields}`}>
-                      {idx + 1}
-                    </h1>
-                    <h1 className={`col-span-1 ${classes.adminDataBodyFields}`}>
-                      {res.subjectCode}
-                    </h1>
-                    <h1 className={`col-span-2 ${classes.adminDataBodyFields}`}>
-                      {res.subjectName}
-                    </h1>
-                    <h1 className={`col-span-1 ${classes.adminDataBodyFields}`}>
-                      {res.test}
-                    </h1>
-                    <h1 className={`col-span-1 ${classes.adminDataBodyFields}`}>
-                      {res.marks}
-                    </h1>
-                    <h1 className={`col-span-1 ${classes.adminDataBodyFields}`}>
-                      {res.totalMarks}
-                    </h1>
-                    <h1 className={`col-span-2 ${classes.adminDataBodyFields}`}>
-                      {computeGrade(res.totalMarks)}
-                    </h1>
-                  </div>
-                ))}
-              </div>
-            )}
+        {/* GPA Display */}
+        <div className="mr-10 text-right font-bold text-lg">
+          GPA: {computedGPA}
+        </div>
+        {/* Table Container */}
+        <div className="mr-10 bg-white rounded-xl pt-6 pl-6 h-auto md:h-[29.5rem] overflow-auto">
+          {/* Table Header using Flex */}
+          <div className="flex items-center border-b border-gray-200 pb-2">
+            <span className="flex-[1] font-bold">Sr no.</span>
+            <span className="flex-[1] font-bold">Course Code</span>
+            <span className="flex-[2] font-bold">Course Name</span>
+            <span className="flex-[1] font-bold">Test</span>
+            <span className="flex-[1] font-bold">Marks Obtained</span>
+            <span className="flex-[1] font-bold">Total Marks</span>
+            <span className="flex-[1] font-bold">Unit</span>
+            <span className="flex-[2] font-bold">Grade</span>
           </div>
+          {/* Table Rows */}
+          {displayResultWithUnits.map((res, idx) => (
+            <div
+              key={idx}
+              className="flex items-center py-2 border-b border-gray-100"
+            >
+              <span className="flex-[1]">{idx + 1}</span>
+              <span className="flex-[1]">{res.subjectCode}</span>
+              <span className="flex-[2]">{res.subjectName}</span>
+              <span className="flex-[1]">{res.test}</span>
+              <span className="flex-[1]">{res.marks}</span>
+              <span className="flex-[1]">{res.totalMarks}</span>
+              <span className="flex-[1]">{res.unit}</span>
+              <span className="flex-[2]">
+                {computeGrade(res.marks, res.totalMarks)}
+              </span>
+            </div>
+          ))}
+          {/* Optional Error Display */}
+          {error && error.someError && (
+            <div className="text-red-500 text-center font-bold mt-4">
+              {error.someError}
+            </div>
+          )}
         </div>
       </div>
     </div>

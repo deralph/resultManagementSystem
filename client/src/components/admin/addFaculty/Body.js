@@ -8,134 +8,157 @@ import MenuItem from "@mui/material/MenuItem";
 import Spinner from "../../../utils/Spinner";
 import { ADD_FACULTY, SET_ERRORS } from "../../../redux/actionTypes";
 import * as classes from "../../../utils/styles";
+
 const Body = () => {
   const dispatch = useDispatch();
-  const store = useSelector((state) => state);
   const departments = useSelector((state) => state.admin.allDepartment);
+  const errorsFromStore = useSelector((state) => state.errors);
+  const { facultyAdded } = useSelector((state) => state.admin);
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState({});
-  const [value, setValue] = useState({
+  const [formData, setFormData] = useState({
     name: "",
     dob: "",
     email: "",
     department: "",
     contactNumber: "",
     avatar: "",
-    joiningYear: Date().split(" ")[3],
+    joiningYear: new Date().getFullYear(),
     gender: "",
     designation: "",
   });
 
+  // Update error state when errors appear in the store
   useEffect(() => {
-    if (Object.keys(store.errors).length !== 0) {
-      setError(store.errors);
-      setValue({ ...value, email: "" });
+    if (errorsFromStore && Object.keys(errorsFromStore).length !== 0) {
+      setError(errorsFromStore);
+      // Reset email if there's an error as per original logic
+      setFormData((prevData) => ({ ...prevData, email: "" }));
+      setLoading(false);
     }
-  }, [store.errors]);
+  }, [errorsFromStore]);
+
+  // Watch for successful faculty addition
+  useEffect(() => {
+    if (facultyAdded) {
+      setLoading(false);
+      setFormData({
+        name: "",
+        dob: "",
+        email: "",
+        department: "",
+        contactNumber: "",
+        avatar: "",
+        joiningYear: new Date().getFullYear(),
+        gender: "",
+        designation: "",
+      });
+      dispatch({ type: SET_ERRORS, payload: {} });
+      dispatch({ type: ADD_FACULTY, payload: false });
+    }
+  }, [facultyAdded, dispatch]);
+
+  // Clear any errors on mount
+  useEffect(() => {
+    dispatch({ type: SET_ERRORS, payload: {} });
+  }, [dispatch]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
     setError({});
     setLoading(true);
-    dispatch(addFaculty(value));
+    dispatch(addFaculty(formData));
   };
 
-  useEffect(() => {
-    if (store.errors || store.admin.facultyAdded) {
-      setLoading(false);
-      if (store.admin.facultyAdded) {
-        setValue({
-          name: "",
-          dob: "",
-          email: "",
-          department: "",
-          contactNumber: "",
-          avatar: "",
-          joiningYear: Date().split(" ")[3],
-          gender: "",
-          designation: "",
-        });
-        dispatch({ type: SET_ERRORS, payload: {} });
-        dispatch({ type: ADD_FACULTY, payload: false });
-      }
-    } else {
-      setLoading(true);
-    }
-  }, [store.errors, store.admin.facultyAdded]);
-
-  useEffect(() => {
-    dispatch({ type: SET_ERRORS, payload: {} });
-  }, []);
+  const handleClear = () => {
+    setFormData({
+      name: "",
+      dob: "",
+      email: "",
+      department: "",
+      contactNumber: "",
+      avatar: "",
+      joiningYear: new Date().getFullYear(),
+      gender: "",
+      designation: "",
+    });
+    setError({});
+  };
 
   return (
-    <div className="flex-[0.8] mt-3">
+    <div className="flex-1 mt-3 p-4">
       <div className="space-y-5">
-        <div className="flex text-gray-400 items-center space-x-2">
+        {/* Header */}
+        <div className="flex items-center space-x-2 text-gray-400">
           <AddIcon />
-          <h1>Add Faculty</h1>
+          <h1 className="text-lg font-semibold">Add Faculty</h1>
         </div>
-        <div className=" mr-10 bg-white flex flex-col rounded-xl ">
+        {/* Form Container */}
+        <div className="bg-white flex flex-col rounded-xl p-4 shadow-md">
           <form className={classes.adminForm0} onSubmit={handleSubmit}>
-            <div className={classes.adminForm1}>
-              <div className={classes.adminForm2l}>
+            <div
+              className={`${classes.adminForm1} flex flex-col md:flex-row md:space-x-4`}
+            >
+              {/* Left Side Fields */}
+              <div className={`${classes.adminForm2l} flex-1 space-y-4`}>
                 <div className={classes.adminForm3}>
                   <h1 className={classes.adminLabel}>Name :</h1>
-
                   <input
                     placeholder="Full Name"
                     required
                     className={classes.adminInput}
                     type="text"
-                    value={value.name}
+                    value={formData.name}
                     onChange={(e) =>
-                      setValue({ ...value, name: e.target.value })
+                      setFormData({ ...formData, name: e.target.value })
                     }
                   />
                 </div>
                 <div className={classes.adminForm3}>
                   <h1 className={classes.adminLabel}>DOB :</h1>
-
                   <input
                     placeholder="DD/MM/YYYY"
                     required
                     className={classes.adminInput}
                     type="date"
-                    value={value.dob}
+                    value={formData.dob}
                     onChange={(e) =>
-                      setValue({ ...value, dob: e.target.value })
+                      setFormData({ ...formData, dob: e.target.value })
                     }
                   />
                 </div>
                 <div className={classes.adminForm3}>
                   <h1 className={classes.adminLabel}>Email :</h1>
-
                   <input
                     placeholder="Email"
                     required
                     className={classes.adminInput}
                     type="email"
-                    value={value.email}
+                    value={formData.email}
                     onChange={(e) =>
-                      setValue({ ...value, email: e.target.value })
+                      setFormData({ ...formData, email: e.target.value })
                     }
                   />
                 </div>
                 <div className={classes.adminForm3}>
                   <h1 className={classes.adminLabel}>Designation :</h1>
-
                   <input
                     placeholder="Designation"
                     required
                     className={classes.adminInput}
                     type="text"
-                    value={value.designation}
+                    value={formData.designation}
                     onChange={(e) =>
-                      setValue({ ...value, designation: e.target.value })
+                      setFormData({ ...formData, designation: e.target.value })
                     }
                   />
                 </div>
               </div>
-              <div className={classes.adminForm2r}>
+              {/* Right Side Fields */}
+              <div
+                className={`${classes.adminForm2r} flex-1 space-y-4 mt-4 md:mt-0`}
+              >
                 <div className={classes.adminForm3}>
                   <h1 className={classes.adminLabel}>Department :</h1>
                   <Select
@@ -143,10 +166,11 @@ const Body = () => {
                     displayEmpty
                     sx={{ height: 36 }}
                     inputProps={{ "aria-label": "Without label" }}
-                    value={value.department}
+                    value={formData.department}
                     onChange={(e) =>
-                      setValue({ ...value, department: e.target.value })
-                    }>
+                      setFormData({ ...formData, department: e.target.value })
+                    }
+                  >
                     <MenuItem value="">None</MenuItem>
                     {departments?.map((dp, idx) => (
                       <MenuItem key={idx} value={dp.department}>
@@ -162,10 +186,11 @@ const Body = () => {
                     displayEmpty
                     sx={{ height: 36 }}
                     inputProps={{ "aria-label": "Without label" }}
-                    value={value.gender}
+                    value={formData.gender}
                     onChange={(e) =>
-                      setValue({ ...value, gender: e.target.value })
-                    }>
+                      setFormData({ ...formData, gender: e.target.value })
+                    }
+                  >
                     <MenuItem value="">None</MenuItem>
                     <MenuItem value="Male">Male</MenuItem>
                     <MenuItem value="Female">Female</MenuItem>
@@ -174,56 +199,49 @@ const Body = () => {
                 </div>
                 <div className={classes.adminForm3}>
                   <h1 className={classes.adminLabel}>Contact Number :</h1>
-
                   <input
                     required
                     placeholder="Contact Number"
                     className={classes.adminInput}
                     type="number"
-                    value={value.contactNumber}
+                    value={formData.contactNumber}
                     onChange={(e) =>
-                      setValue({ ...value, contactNumber: e.target.value })
+                      setFormData({
+                        ...formData,
+                        contactNumber: e.target.value,
+                      })
                     }
                   />
                 </div>
                 <div className={classes.adminForm3}>
                   <h1 className={classes.adminLabel}>Avatar :</h1>
-
                   <FileBase
                     type="file"
                     multiple={false}
                     onDone={({ base64 }) =>
-                      setValue({ ...value, avatar: base64 })
+                      setFormData({ ...formData, avatar: base64 })
                     }
                   />
                 </div>
               </div>
             </div>
-            <div className={classes.adminFormButton}>
+            {/* Buttons */}
+            <div
+              className={`${classes.adminFormButton} flex flex-col sm:flex-row sm:space-x-4 mt-4`}
+            >
               <button className={classes.adminFormSubmitButton} type="submit">
                 Submit
               </button>
               <button
-                onClick={() => {
-                  setValue({
-                    name: "",
-                    dob: "",
-                    email: "",
-                    department: "",
-                    contactNumber: "",
-                    avatar: "",
-                    joiningYear: Date().split(" ")[3],
-                    password: "",
-                    username: "",
-                  });
-                  setError({});
-                }}
+                onClick={handleClear}
                 className={classes.adminFormClearButton}
-                type="button">
+                type="button"
+              >
                 Clear
               </button>
             </div>
-            <div className={classes.loadingAndError}>
+            {/* Loading and Error Display */}
+            <div className={`${classes.loadingAndError} mt-4`}>
               {loading && (
                 <Spinner
                   message="Adding Faculty"
@@ -234,7 +252,7 @@ const Body = () => {
                 />
               )}
               {(error.emailError || error.backendError) && (
-                <p className="text-red-500">
+                <p className="text-red-500 mt-2">
                   {error.emailError || error.backendError}
                 </p>
               )}

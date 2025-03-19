@@ -7,78 +7,91 @@ import Spinner from "../../../utils/Spinner";
 import * as classes from "../../../utils/styles";
 import { DELETE_FACULTY, SET_ERRORS } from "../../../redux/actionTypes";
 
+const initialFilter = { department: "" };
+
 const Body = () => {
   const dispatch = useDispatch();
+
+  // Redux selectors
   const departments = useSelector((state) => state.admin.allDepartment);
-  const [error, setError] = useState({});
+  const faculties = useSelector((state) => state.admin.faculties.result);
+  const errors = useSelector((state) => state.errors);
+  const facultyDeleted = useSelector((state) => state.admin.facultyDeleted);
+
+  // Local state
+  const [filter, setFilter] = useState(initialFilter);
   const [loading, setLoading] = useState(false);
-  const store = useSelector((state) => state);
-  const [checkedValue, setCheckedValue] = useState([]);
-
-  const [value, setValue] = useState({
-    department: "",
-  });
   const [search, setSearch] = useState(false);
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [localError, setLocalError] = useState({});
 
+  // Clear errors on mount
   useEffect(() => {
-    if (Object.keys(store.errors).length !== 0) {
-      setError(store.errors);
+    dispatch({ type: SET_ERRORS, payload: {} });
+  }, [dispatch]);
+
+  // Update local error state when Redux errors change
+  useEffect(() => {
+    if (Object.keys(errors).length > 0) {
+      setLocalError(errors);
       setLoading(false);
     }
-  }, [store.errors]);
+  }, [errors]);
 
-  const handleInputChange = (e) => {
-    const tempCheck = checkedValue;
-    let index;
-    if (e.target.checked) {
-      tempCheck.push(e.target.value);
-    } else {
-      index = tempCheck.indexOf(e.target.value);
-      tempCheck.splice(index, 1);
+  // Reset state when faculty deletion is successful
+  useEffect(() => {
+    if (facultyDeleted) {
+      setLoading(false);
+      setFilter(initialFilter);
+      setSearch(false);
+      setSelectedIds([]);
+      dispatch({ type: DELETE_FACULTY, payload: false });
     }
-    setCheckedValue(tempCheck);
+  }, [facultyDeleted, dispatch]);
+
+  // Turn off loading once faculties data is available
+  useEffect(() => {
+    if (faculties?.length > 0) {
+      setLoading(false);
+    }
+  }, [faculties]);
+
+  // Immutable update for checkboxes
+  const handleCheckboxChange = (e) => {
+    const { value, checked } = e.target;
+    setSelectedIds((prev) =>
+      checked ? [...prev, value] : prev.filter((id) => id !== value)
+    );
+  };
+
+  const handleFilterChange = (e) => {
+    const { name, value } = e.target;
+    setFilter((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
     setSearch(true);
     setLoading(true);
-    setError({});
-    dispatch(getFaculty(value));
+    setLocalError({});
+    dispatch(getFaculty(filter));
   };
-  const faculties = useSelector((state) => state.admin.faculties.result);
 
-  const dltFaculty = (e) => {
-    setError({});
+  const handleDelete = () => {
+    setLocalError({});
     setLoading(true);
-    dispatch(deleteFaculty(checkedValue));
+    dispatch(deleteFaculty(selectedIds));
   };
-
-  useEffect(() => {
-    if (store.admin.facultyDeleted) {
-      setLoading(false);
-      setValue({ department: "" });
-      dispatch({ type: DELETE_FACULTY, payload: false });
-      setSearch(false);
-    }
-  }, [store.admin.facultyDeleted]);
-
-  useEffect(() => {
-    if (faculties?.length !== 0) setLoading(false);
-  }, [faculties]);
-
-  useEffect(() => {
-    dispatch({ type: SET_ERRORS, payload: {} });
-  }, []);
 
   return (
-    <div className="flex-[0.8] mt-3">
+    <div className="flex-[0.8] mt-3 w-full px-4">
       <div className="space-y-5">
-        <div className="flex text-gray-400 items-center space-x-2">
+        <div className="flex items-center space-x-2 text-gray-400">
           <DeleteIcon />
-          <h1>Delete Staff</h1>
+          <h1 className="text-lg font-semibold">Delete Staff</h1>
         </div>
-        <div className=" mr-10 bg-white grid grid-cols-4 rounded-xl pt-6 pl-6 h-[29.5rem]">
+        <div className="bg-white grid grid-cols-1 md:grid-cols-4 rounded-xl pt-6 pl-6 h-[29.5rem] mr-10">
+          {/* Filter Section */}
           <form
             className="flex flex-col space-y-2 col-span-1"
             onSubmit={handleSubmit}
@@ -89,10 +102,9 @@ const Body = () => {
               displayEmpty
               sx={{ height: 36, width: 224 }}
               inputProps={{ "aria-label": "Without label" }}
-              value={value.department}
-              onChange={(e) =>
-                setValue({ ...value, department: e.target.value })
-              }
+              name="department"
+              value={filter.department}
+              onChange={handleFilterChange}
             >
               <MenuItem value="">None</MenuItem>
               {departments?.map((dp, idx) => (
@@ -101,7 +113,6 @@ const Body = () => {
                 </MenuItem>
               ))}
             </Select>
-
             <button
               className={`${classes.adminFormSubmitButton} w-56`}
               type="submit"
@@ -109,7 +120,8 @@ const Body = () => {
               Search
             </button>
           </form>
-          <div className="col-span-3 mr-6">
+          {/* Data & Delete Section */}
+          <div className="col-span-1 md:col-span-3 mr-6">
             <div className={classes.loadingAndError}>
               {loading && (
                 <Spinner
@@ -120,16 +132,16 @@ const Body = () => {
                   messageColor="blue"
                 />
               )}
-              {(error.noFacultyError || error.backendError) && (
+              {(localError.noFacultyError || localError.backendError) && (
                 <p className="text-red-500 text-2xl font-bold">
-                  {error.noFacultyError || error.backendError}
+                  {localError.noFacultyError || localError.backendError}
                 </p>
               )}
             </div>
             {search &&
               !loading &&
-              Object.keys(error).length === 0 &&
-              faculties?.length !== 0 && (
+              !Object.keys(localError).length &&
+              faculties?.length > 0 && (
                 <div className={`${classes.adminData} h-[20rem]`}>
                   <div className="grid grid-cols-8">
                     <h1 className={`col-span-1 ${classes.adminDataHeading}`}>
@@ -144,21 +156,20 @@ const Body = () => {
                     <h1 className={`col-span-2 ${classes.adminDataHeading}`}>
                       Username
                     </h1>
-
                     <h1 className={`col-span-2 ${classes.adminDataHeading}`}>
                       Email
                     </h1>
                   </div>
-                  {faculties?.map((adm, idx) => (
+                  {faculties.map((staff, idx) => (
                     <div
-                      key={idx}
-                      className={`${classes.adminDataBody} grid-cols-8`}
+                      key={staff._id || idx}
+                      className={`${classes.adminDataBody} grid grid-cols-8 items-center`}
                     >
                       <input
-                        onChange={handleInputChange}
-                        value={adm._id}
-                        className="col-span-1 border-2 w-16 h-4 mt-3 px-2 "
                         type="checkbox"
+                        value={staff._id}
+                        onChange={handleCheckboxChange}
+                        className="col-span-1 border-2 w-16 h-4 mt-3 px-2"
                       />
                       <h1
                         className={`col-span-1 ${classes.adminDataBodyFields}`}
@@ -168,27 +179,26 @@ const Body = () => {
                       <h1
                         className={`col-span-2 ${classes.adminDataBodyFields}`}
                       >
-                        {adm.name}
+                        {staff.name}
                       </h1>
                       <h1
                         className={`col-span-2 ${classes.adminDataBodyFields}`}
                       >
-                        {adm.username}
+                        {staff.username}
                       </h1>
-
                       <h1
                         className={`col-span-2 ${classes.adminDataBodyFields}`}
                       >
-                        {adm.email}
+                        {staff.email}
                       </h1>
                     </div>
                   ))}
                 </div>
               )}
-            {search && Object.keys(error).length === 0 && (
+            {search && !Object.keys(localError).length && (
               <div className="space-x-3 flex items-center justify-center mt-5">
                 <button
-                  onClick={dltFaculty}
+                  onClick={handleDelete}
                   className={`${classes.adminFormSubmitButton} bg-blue-500`}
                 >
                   Delete
