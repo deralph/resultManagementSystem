@@ -70,10 +70,10 @@ const StudentLogin = () => {
           }`}
         >
           <h1 className="text-4xl font-extrabold text-gray-800 mb-4">
-            Welcome Back, Student!
+            Welcome Back, IPTP Student!
           </h1>
           <p className="text-gray-600 text-center">
-            Sign in to access your dashboard and continue your learning journey.
+            Sign in to access your IPTP dashboard and continue your learning journey.
           </p>
         </div>
 
