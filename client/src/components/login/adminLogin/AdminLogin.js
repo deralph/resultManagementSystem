@@ -74,7 +74,7 @@ const AdminLogin = () => {
             Welcome Admin!
           </h1>
           <p className="text-gray-600 text-center">
-            Sign in to manage and oversee system operations.
+            Sign in to manage and oversee the IPTP system operations.
           </p>
         </div>
 
