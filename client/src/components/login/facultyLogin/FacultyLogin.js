@@ -69,10 +69,10 @@ const FacultyLogin = () => {
           }`}
         >
           <h1 className="text-4xl font-extrabold text-gray-800 mb-4">
-            Welcome Staff!
+            Welcome IPTP Staff!
           </h1>
           <p className="text-gray-600 text-center">
-            Sign in to access your dashboard and manage your classes with ease.
+            Sign in to access your IPTP dashboard and manage your classes with ease.
           </p>
         </div>
 
