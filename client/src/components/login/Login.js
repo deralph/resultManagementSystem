@@ -15,7 +15,7 @@ const Login = () => {
     >
       <header className="flex items-center mb-8 space-x-4">
         <h1 className="text-3xl font-bold text-black text-center">
-          ADEKUNLE AJASIN UNIVERSITY
+          ADEKUNLE AJASIN UNIVERSITY AKUNGBA (IPTP) PANEL
         </h1>
       </header>
       <main className="flex flex-col md:flex-row space-y-4 md:space-y-0 md:space-x-4">
